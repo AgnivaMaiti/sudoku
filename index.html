@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: grey;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        .container {
+            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+            color: indigo;
+            font-weight: bold;
+            text-align: center;
+            font-size: 30px;
+            width: 350px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 50px;
+        }
+        #sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 2px;
+            width: 300px;
+            margin-top: 30px;
+        }
+        #sudoku-grid input {
+            width: 30px;
+            height: 30px;
+            text-align: center;
+        }
+        #header {
+            text-align: center;
+        }
+        button, select {
+            margin-top: 20px;
+        }
+        #copyright {
+            position: absolute;
+            bottom: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="header">Sudoku!</h1>
+        <div id="sudoku-grid"></div>
+        <button onclick="solveSudoku()">Solve</button>
+        <button onclick="newPuzzle()">New Puzzle</button>
+        <select id="language" onchange="changeLanguage()">
+            <option value="en">English</option>
+            <option value="bn">Bengali</option>
+            <option value="hi">Hindi</option>
+            <option value="or">Odia</option>
+            <option value="ja">Japanese</option>
+        </select>
+    </div>
+    <div id="copyright">© 2023 Agniva Maiti</div>
+
+    <script>
+        let grid = generateSudoku();
+        let language = 'en';
+        let numberMap = {
+            'en': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            'bn': ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'],
+            'hi': ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'],
+            'or': ['୦', '୧', '୨', '୩', '୪', '୫', '୬', '୭', '୮', '୯'],
+            'ja': ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+        };
+
+        window.onload = function() {
+            displayGrid();
+        };
+
+        function displayGrid() {
+            let sudokuGrid = document.getElementById('sudoku-grid');
+            sudokuGrid.innerHTML = '';
+            for(let i = 0; i < 9; i++) {
+                for(let j = 0; j < 9; j++) {
+                    let cell = document.createElement('input');
+                    cell.value = translateNumber(grid[i][j]);
+                    sudokuGrid.appendChild(cell);
+                }
+            }
+        }
+
+        function solveSudoku() {
+            if(solve(grid)) {
+                alert('Sudoku solved!');
+                updateGrid();
+            } else {
+                alert('No solution exists.');
+            }
+        }
+
+        function newPuzzle() {
+            grid = generateSudoku();
+            displayGrid();
+        }
+
+        function solve(grid) {
+            let emptyPos = findEmpty(grid);
+            if(!emptyPos) return true;
+
+            for(let num = 1; num <= 9; num++) {
+                if(isSafe(grid, emptyPos, num)) {
+                    grid[emptyPos[0]][emptyPos[1]] = num;
+                    if(solve(grid)) return true;
+                    grid[emptyPos[0]][emptyPos[1]] = 0;
+                }
+            }
+            return false;
+        }
+
+        function findEmpty(grid) {
+            for(let i = 0; i < 9; i++) {
+                for(let j = 0; j < 9; j++) {
+                    if(grid[i][j] == 0) return [i, j];
+                }
+            }
+            return false;
+        }
+
+        function isSafe(grid, pos, num) {
+            for(let i = 0; i < 9; i++) {
+                if(grid[i][pos[1]] == num || grid[pos[0]][i] == num) return false;
+            }
+            let startRow = pos[0] - pos[0] % 3, startCol = pos[1] - pos[1] % 3;
+            for(let i = 0; i < 3; i++) {
+                for(let j = 0; j < 3; j++) {
+                    if(grid[i + startRow][j + startCol] == num) return false;
+                }
+            }
+            return true;
+        }
+
+        function updateGrid() {
+            let cells = document.getElementById('sudoku-grid').children;
+            for(let i = 0; i < 9; i++) {
+                for(let j = 0; j < 9; j++) {
+                    cells[i * 9 + j].value = translateNumber(grid[i][j]);
+                }
+            }
+        }
+
+        function generateSudoku() {
+            let base = 3;
+            let side = base * base;
+
+            function pattern(r, c, base) {
+                return (base * (r % base) + Math.floor(r / base) + c) % side;
+            }
+
+            function shuffle(s) {
+                return s.sort(() => 0.5 - Math.random());
+            }
+
+            let rBase = range(base);
+            let rows = shuffle(range(side));
+            let cols = shuffle(range(side));
+            let nums = shuffle(range(1, side + 1));
+
+            let board = rows.map(function(r) {
+                return cols.map(function(c) {
+                    return nums[pattern(r, c, base)];
+                });
+            });
+
+            let cells = side * side;
+            let empties = Math.floor(cells * 0.4);
+            for (let i = 0; i < empties; i++) {
+                let r, c;
+                do {
+                    r = Math.floor(Math.random() * side);
+                    c = Math.floor(Math.random() * side);
+                } while (board[r][c] === 0);
+                let temp = board[r][c];
+                board[r][c] = 0;
+                let copy = JSON.parse(JSON.stringify(board));
+                if (!solve(copy)) {
+                    board[r][c] = temp;
+                    i--;
+                }
+            }
+
+            return board;
+        }
+
+        function range(start, end) {
+            if (!end) {
+                end = start;
+                start = 0;
+            }
+            let len = end - start;
+            return Array(len).fill().map((_, idx) => start + idx);
+        }
+
+        function changeLanguage() {
+            language = document.getElementById('language').value;
+            let header = document.getElementById('header');
+            let solveButton = document.querySelector('button');
+            let newPuzzleButton = document.querySelectorAll('button')[1];
+
+            switch(language) {
+                case 'bn':
+                    header.textContent = 'সুডোকু!';
+                    solveButton.textContent = 'সমাধান করুন';
+                    newPuzzleButton.textContent = 'নতুন ধাঁধা';
+                    break;
+                case 'hi':
+                    header.textContent = 'सुडोकु!';
+                    solveButton.textContent = 'हल करें';
+                    newPuzzleButton.textContent = 'नया पहेली';
+                    break;
+                case 'or':
+                    header.textContent = 'ସୁଡୋକୁ!';
+                    solveButton.textContent = 'ସମାଧାନ କରନ୍ତୁ';
+                    newPuzzleButton.textContent = 'ନୂତନ ପଜଲ';
+                    break;
+                case 'ja':
+                    header.textContent = '数独!';
+                    solveButton.textContent = '解く';
+                    newPuzzleButton.textContent = '新しいパズル';
+                    break;
+                default:
+                    header.textContent = 'Sudoku!';
+                    solveButton.textContent = 'Solve';
+                    newPuzzleButton.textContent = 'New Puzzle';
+                    break;
+            }
+            updateGrid();
+        }
+
+        function translateNumber(num) {
+            if(num === 0) return '';
+            return numberMap[language][num];
+        }
+    </script>
+</body>
+</html>
